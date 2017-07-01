@@ -1,4 +1,7 @@
 
+### Application specific files ###
+imcrypt/config/config.py
+
 ### Python ###
 *.py[cod]
 
