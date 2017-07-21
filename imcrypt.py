@@ -4,20 +4,14 @@ from requests_oauthlib import OAuth2Session
 from flask import Flask, render_template, redirect, url_for, request, session
 from flask_login import LoginManager, login_required, current_user, login_user, UserMixin, logout_user
 from flask_sqlalchemy import SQLAlchemy
-from flask_hashing import Hashing
 from config import config, Auth
 from requests.exceptions import HTTPError
-from cryptography.fernet import Fernet
 from Crypto import Random
-from Crypto.PublicKey import DSA, RSA
-from Crypto.Hash import SHA
 from Crypto.Cipher import AES
 
 app = Flask(__name__)
 
 app.config.from_object(config["dev"])
-
-hashing = Hashing(app)
 
 db = SQLAlchemy(app, session_options={"autoflush": False})
 
@@ -66,6 +60,13 @@ class AESCipher():
 key = Random.new().read(32)
 aes = AESCipher(key)
 
+def validateExtension(filename):
+  extension = filename.split('.')[-1]
+  return '.' in filename and extension.lower() in app.config["ALLOWED_FILE_TYPES"]
+
+def validateFileSize(fileContent):
+  return len(fileContent) < app.config["MAX_CONTENT_LENGTH"]
+
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 login_manager.session_protection = "strong"
@@ -96,7 +97,7 @@ def index():
   uploads = Uploads.query.filter_by(userID=current_user.get_id()).with_entities(Uploads.data).all()
   images = []
   for upload in uploads:
-    images.append(aes.decrypt(upload[0]))
+    images.append(str(base64.b64encode(aes.decrypt(upload[0])), "ascii"))
   
   return render_template("index.html", images=images)
 
@@ -134,9 +135,6 @@ def callback():
                     )
         except HTTPError:
             return 'HTTPError occurred.'
-        #remember = "remember-me" in request.args
-        #print(remember)
-        #print(list(request.form.items()))
         google = get_google_auth(token=token)
         resp = google.get(Auth.USER_INFO)
         if resp.status_code == 200:
@@ -151,7 +149,6 @@ def callback():
             user.avatar = user_data['picture']
             db.session.add(user)
             db.session.commit()
-            #login_user(user, remember=remember)
             login_user(user)
             return redirect(url_for('index'))
         return 'Could not fetch your information.'
@@ -165,30 +162,6 @@ def logout():
 @app.route("/upload")
 def upload():
     return render_template("upload.html")
-
-def validateExtension(filename):
-  return '.' in filename and filename.split('.')[-1] in app.config["ALLOWED_FILE_TYPES"]
-
-def validateFileSize(fileContent):
-  return len(fileContent) < app.config["MAX_CONTENT_LENGTH"]
-
-def randomString(length=16):
-    chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join((random.choice(chars)) for i in range(length))
-
-def encrypt(content, algorithm="base64"):
-  if algorithm == "base64":
-    return base64.b64encode(content)
-  if algorithm == "fernet":
-    key = Fernet.generate_key()
-    f = Fernet(key)
-    return f.encrypt(content)
-  if algorithm == "aes":
-    key = Random.new().read(32)
-    iv = Random.new().read(AES.block_size)
-    cipher = AES.new(key, AES.MODE_CFB, iv)
-    return iv + cipher.encrypt(content)
-  
 
 @app.route('/postFileToDatabase', methods=['GET','POST'])
 def postFileToDatabase():

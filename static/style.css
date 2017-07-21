@@ -93,7 +93,7 @@
   border-color: #222;
 }
 
-img {
+.img-responsive {
   filter: gray; /* IE6-9 */
   -webkit-filter: grayscale(1); /* Google Chrome, Safari 6+ & Opera 15+ */
     -webkit-box-shadow: 0px 2px 6px 2px rgba(0,0,0,0.75);
@@ -102,7 +102,7 @@ img {
     margin-bottom:20px;
 }
 
-img:hover {
+.img-responsive:hover {
   filter: none; /* IE6-9 */
   -webkit-filter: grayscale(0); /* Google Chrome, Safari 6+ & Opera 15+ */
  
