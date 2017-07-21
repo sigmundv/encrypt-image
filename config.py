@@ -23,12 +23,14 @@ class Auth:
 		AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
 		TOKEN_URI = 'https://accounts.google.com/o/oauth2/token'
 		USER_INFO = 'https://www.googleapis.com/userinfo/v2/me'
-		SCOPE = 'https://www.googleapis.com/auth/userinfo.email'
+		SCOPE = ['profile', 'email']
 
 
 class Config:
     APP_NAME = "ImCrypt"
     SECRET_KEY = os.environ.get("SECRET_KEY") or "imcrypt-dev"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # Max filesize of 5MB
 
 
 class DevConfig(Config):
