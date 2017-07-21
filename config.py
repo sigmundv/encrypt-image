@@ -31,6 +31,7 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or "imcrypt-dev"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # Max filesize of 5MB
+    ALLOWED_FILE_TYPES = ["jpeg", "jpg", "png", "bmp", "tiff", "svg", "txt"]
 
 
 class DevConfig(Config):
