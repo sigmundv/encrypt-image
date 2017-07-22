@@ -183,27 +183,30 @@ def postFileToDatabase():
     images = request.files.getlist('images')
     success = False
 
+    try:
     #verify the file exists, has an allowed extension, and is under our max file size
-    for file in images:
-      if file and validateExtension(file.filename):
-        #search the database via SQLAlchemy for an upload associated with our user
-        timestamp = arrow.utcnow().float_timestamp
-        upload = Uploads.query.filter_by(userID=current_user.get_id(), timestamp=timestamp).first()
-        #if the user already has an upload, find and overwrite in database
-        content = file.read()
-        if validateFileSize(content):
-          if upload is not None:
-            upload.data = aes.encrypt(content)
-          #otherwise, create a new upload database object
-          else:
-            upload = Uploads(userID=current_user.get_id(), timestamp=timestamp, data=aes.encrypt(content))
-          #add our users upload to the database
-          db.session.add(upload)
-    
-    db.session.commit()
-    success = True
+      for file in images:
+        if file and validateExtension(file.filename):
+          #search the database via SQLAlchemy for an upload associated with our user
+          timestamp = arrow.utcnow().float_timestamp
+          upload = Uploads.query.filter_by(userID=current_user.get_id(), timestamp=timestamp).first()
+          #if the user already has an upload, find and overwrite in database
+          content = file.read()
+          if validateFileSize(content):
+            if upload is not None:
+              upload.data = aes.encrypt(content)
+            #otherwise, create a new upload database object
+            else:
+              upload = Uploads(userID=current_user.get_id(), timestamp=timestamp, data=aes.encrypt(content))
+            #add our users upload to the database
+            db.session.add(upload)
+            success = True
+    except Exception as e:
+        print(e)
+    finally:
+      db.session.commit()
         
-    #print(json.dumps({"Success" : success}))
+    print(json.dumps({"Success" : success}))
 
     return redirect(url_for('index'))
 
