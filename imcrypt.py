@@ -9,11 +9,13 @@ from requests.exceptions import HTTPError
 from Crypto import Random
 from Crypto.Cipher import AES
 
-app = Flask(__name__)
+app = Flask(__name__)  # this is boilerplate for apps built using the Flask microframework
 
-app.config.from_object(config["dev"])
+app.config.from_object(config["dev"])  # we run with the development mode; to switch to procuction mode we change 'dev' to 'prod'
 
 db = SQLAlchemy(app, session_options={"autoflush": False})
+
+# Below we define two entities, one for the users and one for the uploads
 
 class User(db.Model, UserMixin):
     __tablename__ = "users"
@@ -36,29 +38,30 @@ class Uploads(db.Model):
       self.timestamp = timestamp
       self.data = data
 
+# Now we implement the AES encryption used to encrypt the uploaded image; this uses the PyCrypto library for Python
+
 class AESCipher():
 
-  def __init__(self, key, block_size=16):
+  def __init__(self, key):  # the AESCipher class is initialised with a key
     self.key = key
-    self.block_size = block_size
 
   def encrypt(self, message):
     if message is None or len(message) == 0:
       return ''
-    iv = Random.new().read(AES.block_size)
-    cipher = AES.new(self.key, AES.MODE_CFB, iv)
-    return base64.b64encode(iv + cipher.encrypt(message))
+    iv = Random.new().read(AES.block_size)  # A random IV is introduced
+    cipher = AES.new(self.key, AES.MODE_CFB, iv)  # The AES cipher is instantiated
+    return base64.b64encode(iv + cipher.encrypt(message))  # Finally the decrypted message is returned base64 encoded
 
   def decrypt(self, message):
     if message is None or len(message) == 0:
       return ''
-    message = base64.b64decode(message)
-    iv = message[:AES.block_size]
-    cipher = AES.new(self.key, AES.MODE_CFB, iv)
-    return cipher.decrypt(message[AES.block_size:])
+    message = base64.b64decode(message)  # The encoded message is first base64 decoded
+    iv = message[:AES.block_size]  # The IV that we stored with the encrypted message is taken out
+    cipher = AES.new(self.key, AES.MODE_CFB, iv)  # The cipher is instantiated
+    return cipher.decrypt(message[AES.block_size:])  # The decrypted message is returned
 
-key = Random.new().read(32)
-aes = AESCipher(key)
+key = Random.new().read(32)  # We initialise the key to use for encrypting the images
+aes = AESCipher(key)  # We initialise the AES cipher with the key from above
 
 def validateExtension(filename):
   extension = filename.split('.')[-1]
@@ -66,6 +69,9 @@ def validateExtension(filename):
 
 def validateFileSize(fileContent):
   return len(fileContent) < app.config["MAX_CONTENT_LENGTH"]
+
+
+# This login manager is user for session handling of the logged in user
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -76,6 +82,7 @@ login_manager.session_protection = "strong"
 def load_user(user_id):
 		return User.query.get(int(user_id))
 
+# Now we're getting an OAuth 2.0 session from Google
 def get_google_auth(state=None, token=None):
     if token:
         return OAuth2Session(Auth.CLIENT_ID, token=token)
@@ -94,6 +101,10 @@ def get_google_auth(state=None, token=None):
 @login_required
 def index():
   
+  # Here we first query the database for the images belonging to the current user, 
+  # then we decrypt the images from the database and show them on the index page
+  # unfortunately the display part only works with PNG images at the moment
+
   uploads = Uploads.query.filter_by(userID=current_user.get_id()).with_entities(Uploads.data).all()
   images = []
   for upload in uploads:
@@ -104,8 +115,10 @@ def index():
 
 @app.route('/login')
 def login():
+    # check if the current user is authenticated
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+    # if they're not authenticated, log them in
     google = get_google_auth()
     auth_url, state = google.authorization_url(
         Auth.AUTH_URI, access_type='offline')
@@ -135,6 +148,8 @@ def callback():
                     )
         except HTTPError:
             return 'HTTPError occurred.'
+        
+        # if the user was successfully logged in we add the user information to the database
         google = get_google_auth(token=token)
         resp = google.get(Auth.USER_INFO)
         if resp.status_code == 200:
@@ -188,11 +203,12 @@ def postFileToDatabase():
     db.session.commit()
     success = True
         
-    print(json.dumps({"Success" : success}))
+    #print(json.dumps({"Success" : success}))
 
     return redirect(url_for('index'))
 
 
+# Finally run the app in HTTPS mode with self-signed certs for the occasion
 
 if __name__ == "__main__":
 
